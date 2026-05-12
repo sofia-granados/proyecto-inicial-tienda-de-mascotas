@@ -1,187 +1,160 @@
-# 📋 Plan de Implementación Procedimental: Polivet Pro
-**Stack:** Flutter + Dart | Firebase (Auth + Firestore) | Provider | Clean Architecture  
-**Enfoque:** Procedimiento paso a paso (sin código) | Diseño minimalista y veterinario  
-**Paleta Estricta:** `#bc6c25` (Primario), `#dda15e` (Acento), `#fefae0` (Fondo/Contraste)
+# 📋 Plan de Implementación: Polivet Pro (Tienda de Mascotas)
+
+> ⚠️ **Nota:** Este documento contiene exclusivamente el procedimiento estructurado, arquitectura y directrices. No se incluye código fuente. La generación de código se realizará por fases en las siguientes iteraciones.
 
 ---
 
-## 🏗️ 0. Preparación del Entorno y Estructura Base
-1. **Inicialización del Proyecto:** Crear proyecto Flutter con nombre `polivet_pro`. Configurar `pubspec.yaml` con dependencias base (`firebase_core`, `firebase_auth`, `cloud_firestore`, `provider`, `intl`, `cached_network_image`, `go_router`, `flutter_svg`).
-2. **Estructura de Carpetas (Clean Architecture):** Organizar `lib/` en capas diferenciadas:
-   - `core/`: Constantes, tema global (`app_theme.dart`), rutas, utilidades y extensiones.
-   - `domain/`: Entidades puras, casos de uso y contratos de repositorios.
-   - `data/`: Implementaciones de repositorios, modelos DTO (`fromMap`/`toMap`), y servicios Firebase.
-   - `presentation/`: Providers (`ChangeNotifier`), pantallas (`screens/`), componentes reutilizables (`widgets/`).
-   - `main.dart`: Punto de entrada, inicialización de Firebase y inyección de `MultiProvider`.
-3. **Configuración Firebase Console:** 
-   - Crear proyecto, registrar apps Android/iOS/Web.
-   - Habilitar **Authentication** → Método: Correo/Contraseña.
-   - Habilitar **Firestore Database** → Modo prueba inicial (luego se aplicarán reglas).
-   - Configurar persistencia offline en cliente desde `FirebaseFirestore.instance.settings`.
+## 🛠️ 1. Herramientas y Entorno de Desarrollo Requerido
+| Herramienta | Propósito | Configuración Recomendada |
+|-------------|-----------|---------------------------|
+| **VS Code** | Editor principal | Extensiones: `Flutter`, `Dart`, `Firebase`, `Error Lens`, `Pubspec Assist`, `Bloc` (opcional para snippets) |
+| **Flutter SDK** | Framework multiplataforma | Canal `stable` (última versión LTS) |
+| **Dart SDK** | Lenguaje de programación | Viene integrado con Flutter SDK |
+| **Android Studio / Xcode** | Emuladores y compilación nativa | Android Studio (SDK Manager + AVD), Xcode (Simuladores iOS) |
+| **Firebase CLI & Console** | Backend como servicio | Proyecto creado, Auth habilitado (Email/Password), Firestore en modo `production` o `test` según etapa |
+| **Git** | Control de versiones | Flujo con ramas `main`, `dev`, `feature/*` |
+| **Figma** (Opcional) | Diseño UI/UX y export de assets | Prototipo de pantallas, guía de estilos, iconos SVG |
 
 ---
 
-## 🚀 FASE 1: Autenticación y Onboarding
-### Paso 1.1: Diseño del Flujo de Bienvenida
-- Crear `WelcomeScreen` con layout centrado, logo vectorial de Polivet y dos botones prominentes: "Iniciar Sesión" y "Crear Cuenta".
-- Aplicar fondo `#fefae0`, botones con gradiente `#bc6c25` → `#dda15e` y bordes redondeados (18dp).
-- Implementar navegación condicional: si ya existe sesión activa, saltar directamente al Dashboard.
+## 📦 2. Dependencias Principales (`pubspec.yaml`)
+Se organizarán por categoría funcional. Solo se listarán paquetes esenciales para cumplir los requerimientos:
 
-### Paso 1.2: Pantalla de Login
-- Diseñar formulario con campos: Correo electrónico, Nombre (solo para display/UI), Contraseña.
-- Validar formato de email y longitud mínima de contraseña (≥6).
-- Conectar botón "Ingresar" a `FirebaseAuth.signInWithEmailAndPassword`.
-- Manejar estados de UI: botón deshabilitado durante carga, snackbars para errores (credenciales inválidas, red, etc.).
-- Al éxito, almacenar estado en `AuthProvider` y navegar a Home.
-
-### Paso 1.3: Pantalla de Registro
-- Diseñar formulario con: Nombre, Apellidos, Fecha de Nacimiento (usar `showDatePicker`), Correo, Contraseña + Confirmación.
-- Ejecutar `FirebaseAuth.createUserWithEmailAndPassword`.
-- **Post-autenticación:** Crear documento en Firestore colección `users` con `uid` como ID, guardando nombre, apellidos, fecha de nacimiento, email, rol por defecto (`usuario`) y `createdAt`.
-- Implementar verificación de correo opcional (`sendEmailVerification`) y manejo de errores de duplicado.
-
-### Paso 1.4: Proveedor de Autenticación (`AuthProvider`)
-- Extender `ChangeNotifier` para exponer: `User? currentUser`, `bool isLoading`, `String? errorMessage`, `bool isAuthenticated`.
-- Inicializar listener de `FirebaseAuth.instance.authStateChanges()` para mantener sesión persistente entre reinicios.
-- Centralizar métodos: `login()`, `register()`, `logout()`, `resetPassword()`.
-- Inyectar en `main.dart` como primer proveedor global.
+| Categoría | Paquetes | Justificación |
+|-----------|----------|---------------|
+| **Core Firebase** | `firebase_core`, `firebase_auth`, `cloud_firestore` | Inicialización, autenticación, base de datos NoSQL |
+| **Gestión de Estado** | `provider` | Inyección de lógica de negocio, notificación de cambios UI |
+| **Navegación** | `go_router` | Enrutamiento declarativo, manejo de estados de auth/redirección |
+| **Utilidades** | `intl`, `uuid`, `collection` | Formato de fechas/monedas, generación de IDs, utilidades de listas |
+| **UI/UX** | `flutter_svg`, `flutter_slidable`, `fluttertoast` | Iconos vectoriales, gestos en listas, feedback visual |
+| **Formularios/Validación** | `flutter_form_builder`, `form_builder_validators` | Construcción dinámica de formularios, reglas de validación |
 
 ---
 
-## 📂 FASE 2: Arquitectura de Datos (Firestore)
-### Paso 2.1: Definición de Modelos y Entidades
-- Crear clases Dart inmutables para cada módulo en `domain/entities/`:
-  - `Mascota`: id, nombre, especie, raza, edad, peso, id_cliente, foto_url.
-  - `Cliente`: id, nombre, apellidos, teléfono, email, dirección, mascotas_ids.
-  - `Producto`: id, nombre, categoría, stock, precio, proveedor_id, activo.
-  - `Proveedor`: id, nombre, contacto, email, teléfono, dirección.
-  - `Venta`/`Compra`: id, fecha, total, cliente_id/empleado_id, lista_items.
-  - `DetalleVenta`/`DetalleCompra`: id_documento, producto_id, cantidad, precio_unitario, subtotal.
-  - `Cita`: id, fecha_hora, mascota_id, cliente_id, empleado_id, motivo, estado.
-  - `HistorialMedico`: id, mascota_id, fecha, diagnóstico, tratamiento, empleado_id, notas.
-  - `Empleado`: id, nombre, cargo_id, teléfono, email, activo.
-  - `Puesto`: id, nombre, descripción, salario_base.
-- Implementar `fromJson`/`toJson` y validaciones básicas en `data/models/`.
+## 🎨 3. Directrices de UI/UX y Sistema de Diseño
+### 🎨 Paleta de Colores (Estricta)
+- **Primario:** `#bc6c25` (Tierra profundo) → Botones principales, headers, acentos fuertes
+- **Secundario/Acento:** `#dda15e` (Arena suave) → Iconos, badges, bordes, hover states
+- **Fondo/Contraste:** `#fefae0` (Crema claro) → Background general, cards, modales
+- **Texto:** `#3e2723` (Marrón oscuro) para legibilidad sobre crema, `#fefae0` para texto sobre primario
 
-### Paso 2.2: Capa de Servicios y Repositorios
-- Crear clases `FirestoreXxxService` en `data/datasources/` con métodos:
-  - `streamAll()`: Retorna `Stream<List<Entity>>` usando `collection().snapshots()`.
-  - `add()`, `update()`, `delete()`: Operaciones atómicas con `try/catch`.
-  - `search()`: Consultas con `where()` y `orderBy()` para filtros.
-- Implementar repositorios en `data/repositories/` que abstraigan la fuente de datos y manejen transformaciones modelo ↔ entidad.
-- Configurar índices compuestos en Firebase Console para consultas frecuentes (ej: `citas` por `fecha_hora` + `estado`).
-
-### Paso 2.3: Providers por Módulo
-- Crear un `ChangeNotifier` por módulo (`PetProvider`, `InventoryProvider`, `SalesProvider`, etc.) en `presentation/providers/`.
-- Cada proveedor debe:
-  - Suscribirse al stream del servicio correspondiente.
-  - Exponer listas filtradas, estado de carga y mensajes de error.
-  - Manejar operaciones CRUD llamando al repositorio y actualizando estado local.
-  - Implementar métodos de búsqueda y paginación virtual (`limit` + `startAfter`).
-- Inyectar todos los proveedores en `MultiProvider` con `create: (_) => XxxProvider()` y `lazy: false` solo para los críticos.
-
-### Paso 2.4: Reglas de Seguridad de Firestore
-- Definir políticas en `firestore.rules`:
-  - `users`: solo lectura/escritura por el propio `request.auth.uid`.
-  - `mascotas`, `clientes`, `citas`, `historial_medico`: lectura para autenticados, escritura solo para empleados/admin.
-  - `productos`, `proveedores`, `ventas`, `compras`, `empleados`, `puestos`: acceso restringido a rol `empleado` o `admin`.
-- Probar reglas con Firebase Console Simulator antes de deploy.
+### 🖼️ Principios de Diseño
+- **Formas:** Bordes redondeados entre `15dp` y `20dp` en cards, botones y diálogos
+- **Sombras:** Suaves y difuminadas (`boxShadow` con opacidad ≤ 15%) para profundidad sin saturar
+- **Gradientes:** Transiciones sutiles `#bc6c25 → #dda15e` en botones CTA y headers de módulos
+- **Tipografía:** Familia sans-serif amigable (ej. `Poppins` o `Nunito`). Jerarquía clara: `Title > Subtitle > Body > Caption`
+- **Iconografía:** Temática veterinaria (huellas, jeringas, calendarios, paquetes, usuarios). Formato SVG para escalabilidad
+- **Feedback UX:** Estados de carga con `CircularProgressIndicator` personalizado, toasts para éxito/error, diálogos de confirmación antes de eliminación
 
 ---
 
-## 🎨 FASE 3: Interfaz de Usuario (UI/UX)
-### Paso 3.1: Sistema de Diseño Global (`AppTheme`)
-- Configurar `ThemeData` con:
-  - `primaryColor`: `#bc6c25`, `colorScheme.secondary`: `#dda15e`, `scaffoldBackgroundColor`: `#fefae0`.
-  - Tipografía: `fontFamily` limpia (ej. `Inter` o `Poppins`), `headlineMedium`, `bodyLarge`, `labelLarge`.
-  - `shape`: `RoundedRectangleBorder` con `borderRadius: 15-20` para cards y botones.
-  - Botones: gradiente lineal `#bc6c25` → `#dda15e`, texto blanco, elevación sutil, estado `hover`/`pressed` con opacidad.
-- Crear `custom_widgets/`: `PrimaryButton`, `SecondaryButton`, `InputField`, `LoadingIndicator`, `EmptyStateWidget`, `ConfirmDialog`.
-
-### Paso 3.2: Dashboard Principal
-- Diseñar `DashboardScreen` con `GridView.builder` (2 columnas en móvil, 3-4 en tablet).
-- Cada celda es un `ModuleCard` que contiene:
-  - Icono veterinario (jeringa, huella, caja, calendario, etc.) en color `#bc6c25`.
-  - Título del módulo en `#dda15e` o `#bc6c25`.
-  - Fondo crema `#fefae0` con sombra suave y bordes redondeados.
-- Tap en card navega a la pantalla de lista del módulo correspondiente usando `go_router`.
-
-### Paso 3.3: Sistema CRUD Universal (Patrón Consistente)
-- **List Screen:** 
-  - AppBar con título y botón flotante "+ Agregar".
-  - Barra de búsqueda superior con debounce.
-  - `ListView.builder` conectado al stream del Provider.
-  - Filtros rápidos (ej: categoría, estado, stock bajo) con chips horizontales.
-  - Swipe-to-delete o botón contextual con `ConfirmDialog`.
-- **Form Screen (Crear/Editar):**
-  - Layout vertical con `SingleChildScrollView`.
-  - Campos dinámicos según entidad (Text, Dropdown, DatePicker, Numeric, ImageUpload).
-  - Validación en tiempo real (`Form` + `TextFormField` validators).
-  - Botón "Guardar" deshabilitado si hay errores o campos vacíos.
-  - Mostrar `CircularProgressIndicator` durante operación asíncrona.
-- **Delete Action:**
-  - Modal estilizado con fondo semitransparente, icono de advertencia, texto explicativo y botones "Cancelar"/"Eliminar".
-  - Ejecutar eliminación en Firestore, manejar error de red, actualizar lista local sin necesidad de recargar stream completo.
-
-### Paso 3.4: Consistencia y Detalles Visuales
-- Aplicar padding uniforme (`16` horizontal, `12` vertical entre elementos).
-- Usar `Divider` sutil `#dda15e` con opacidad `0.3` para separar secciones.
-- Implementar `Hero` animations para transiciones entre lista y detalle.
-- Asegurar contraste WCAG AA: texto oscuro `#1a1a1a` sobre fondo `#fefae0`, texto blanco sobre botones primarios.
+## 🏗️ 4. Arquitectura del Proyecto (Clean Architecture + Provider)
+```
+lib/
+├── core/               # Constantes, temas, utilidades globales, router
+├── domain/             # Entidades puras, interfaces de repositorio, casos de uso
+├── data/               # Modelos (fromJson/toJson), implementaciones de repositorios, fuentes de datos (Firebase)
+├── presentation/       # Providers, screens, widgets reutilizables, componentes UI
+└── main.dart           # Punto de entrada, configuración de MultiProvider, MaterialApp
+```
+- **State Management:** `ChangeNotifier` encapsulado en `Providers` por módulo (Auth, Mascotas, Inventario, Citas, Ventas, etc.)
+- **Inyección:** Instanciación manual en `main.dart` o mediante `get_it` si se escala
+- **Flujo de Datos:** UI → Provider → UseCase/Service → Firestore → Stream/Future → UI (reconstrucción controlada)
 
 ---
 
-## 🛠️ FASE 4: Integración, Validación y Despliegue
-### Paso 4.1: Enrutamiento y Protección de Rutas
-- Configurar `GoRouter` con:
-  - Rutas públicas: `/welcome`, `/login`, `/register`.
-  - Rutas protegidas: `/dashboard`, `/pets`, `/inventory`, `/health`, `/staff`, `/commercial`.
-  - `redirect`: verificar `AuthProvider.isAuthenticated`. Si false → `/welcome`.
-  - Manejar estado de navegación con `RefreshIndicator` en listas.
+## 🚀 5. Procedimiento Paso a Paso (Fases de Desarrollo)
 
-### Paso 4.2: Manejo Global de Errores y Estados
-- Implementar `ErrorBoundary` widget para capturar fallos de renderizado.
-- Centralizar excepciones Firebase (`FirebaseAuthException`, `FirebaseFirestoreException`) en un `ErrorHandler` que mapee códigos a mensajes amigables en español.
-- Usar `SnackBar` estilizado con colores de la paleta para feedback no intrusivo.
+### 🔹 FASE 0: Configuración Inicial y Estructura
+1. Crear proyecto Flutter en VS Code (`flutter create polivet_pro`)
+2. Ejecutar `flutterfire configure` para vincular Firebase (Auth + Firestore)
+3. Crear estructura de carpetas siguiendo Clean Architecture
+4. Configurar `pubspec.yaml` con dependencias listadas y assets (iconos, logos, fuentes)
+5. Definir `AppTheme` global con paleta de colores, tipografía y espaciados base
+6. Configurar `go_router` con rutas protegidas por estado de autenticación
 
-### Paso 4.3: Optimización y Rendimiento
-- Aplicar `const` en widgets estáticos y `ValueListenableBuilder`/`Selector` para minimizar rebuilds.
-- Implementar paginación real en listas grandes (cargar 20 items, scroll trigger para siguiente batch).
-- Habilitar `cacheWidth`/`cacheHeight` en imágenes para reducir consumo de memoria.
-- Ejecutar `flutter analyze` y corregir advertencias de rendimiento y accesibilidad.
+### 🔹 FASE 1: Autenticación y Onboarding
+1. Habilitar `Email/Password` en Firebase Console
+2. Crear entidad `UserEntity` y modelo `UserModel` con campos: nombre, apellidos, fecha nacimiento, email, uid
+3. Implementar `AuthService` (registro, login, logout, escucha de stream de autenticación)
+4. Crear `AuthProvider` con `ChangeNotifier` para exponer estado de sesión y perfil
+5. Diseñar `WelcomeScreen` con logo, ilustración y botones `Iniciar Sesión` / `Crear Cuenta`
+6. Desarrollar `LoginScreen` con validaciones en tiempo real y manejo de errores Firebase
+7. Desarrollar `RegisterScreen` con `DatePicker` para fecha de nacimiento y validación de contraseña
+8. Implementar redirección automática post-autenticación al Dashboard
+9. Validar flujo completo sin conexión y con errores simulados
 
-### Paso 4.4: Pruebas y Validación
-- **Unitarias:** Validación de modelos, lógica de cálculo en ventas/compras, estados de providers.
-- **Widget:** Renderizado correcto de formularios, diálogos, tarjetas de dashboard, estados de carga/vacío.
-- **Integración:** Flujo completo registro → login → agregar mascota → crear cita → eliminar producto.
-- **Firebase:** Verificar que los datos se escriben/leen correctamente en consola, que las reglas de seguridad bloquean accesos no autorizados y que los streams actualizan UI en tiempo real.
+### 🔹 FASE 2: Arquitectura de Datos (Firestore)
+1. Definir esquemas JSON para cada entidad: `Mascota`, `Cliente`, `Producto`, `Proveedor`, `Venta`, `Compra`, `Cita`, `HistorialMedico`, `Empleado`, `Puesto`
+2. Crear modelos Dart con métodos `fromJson` / `toJson` y validaciones de campos obligatorios
+3. Implementar `FirestoreService` genérico con métodos CRUD y escucha en tiempo real (`snapshots`)
+4. Estructurar colecciones en Firestore:
+   - `users/{uid}` → perfil principal
+   - `pets`, `clients`, `inventory`, `suppliers`, `appointments`, `medical_records`, `sales`, `purchases`, `staff`, `roles`
+5. Crear `Providers` individuales por módulo para aislar estados y notificaciones
+6. Configurar reglas de seguridad básicas en Firestore (lectura/escritura autenticada, validación de tipos)
+7. Implementar paginación o límites en listas grandes para optimizar rendimiento
 
-### Paso 4.5: Preparación para Release
-- Generar iconos adaptativos y splash screen con paleta oficial.
-- Configurar `android/app/build.gradle` y `ios/Runner` para firma y minificación.
-- Ejecutar `flutter build apk --release` y `flutter build ipa`.
-- Documentar estructura, flujos y credenciales de desarrollo en `README.md` y `ARCHITECTURE.md`.
-- Configurar Crashlytics y Analytics para monitoreo post-lanzamiento.
+### 🔹 FASE 3: Interfaz de Usuario y Dashboard CRUD
+1. Construir `BaseScaffold` con AppBar personalizada, drawer opcional y bottom navigation si es necesario
+2. Diseñar `DashboardScreen` con grid responsivo de cards por módulo (icono, título, badge de estado)
+3. Crear componente `CustomCard` con gradientes, sombras y bordes redondeados según guía UI
+4. Desarrollar `ListScreen` genérico reutilizable: `ListView.builder`, `SearchDelegate`, filtros por categoría/estado
+5. Desarrollar `FormScreen` dinámico: campos según entidad, validación inline, botón guardar/editar
+6. Implementar diálogos de confirmación estilizados para acciones destructivas (eliminar registro)
+7. Integrar `fluttertoast` para feedback de éxito/error y `CircularProgressIndicator` para estados de carga
+8. Aplicar temas de colores consistentes en todos los widgets y verificar contraste WCAG básico
+9. Optimizar reconstrucciones UI con `Consumer`, `Selector` o `context.watch` selectivo
+
+### 🔹 FASE 4: Integración, Testing y Entrega
+1. Conectar Auth + Dashboard + CRUDs mediante `MultiProvider` en `main.dart`
+2. Implementar manejo global de errores (try/catch, mensajes amigables, fallback UI)
+3. Ejecutar pruebas unitarias de servicios y pruebas de widgets básicos (login, formulario, lista)
+4. Configurar icono de app y splash screen (`flutter_launcher_icons`)
+5. Verificar compilación limpia para Android (`flutter build apk`) y iOS (`flutter build ios`)
+6. Documentar estructura, flujos y dependencias en `README.md`
+7. Preparar checklist de release (permisos, versión, minSDK, targetSDK, optimización de assets)
 
 ---
 
-## ✅ Checklist de Validación Final
-- [ ] Paleta `#bc6c25`, `#dda15e`, `#fefae0` aplicada consistentemente en todo el UI.
-- [ ] Autenticación funcional con persistencia de sesión y creación de perfil en Firestore.
-- [ ] 10 módulos implementados con CRUD completo y streams en tiempo real.
-- [ ] Arquitectura limpia respetada: `presentation` → `domain` → `data` → `core`.
-- [ ] Providers gestionan estado, carga, errores y notificaciones sin `setState` disperso.
-- [ ] Formularios validados, diálogos de confirmación estilizados, navegación protegida.
-- [ ] Reglas de Firestore activas y probadas.
-- [ ] App compila sin errores, responde a <16ms/frame, sin memory leaks detectados.
+## ✅ 6. Criterios de Aceptación y Validación
+- [ ] Flujo de registro/login funcional con Firebase Auth y persistencia en Firestore
+- [ ] CRUD completo para las 10 entidades con actualización en tiempo real
+- [ ] Interfaz visual consistente con paleta `#bc6c25`, `#dda15e`, `#fefae0`
+- [ ] Navegación segura y condicional basada en estado de autenticación
+- [ ] Arquitectura modular y escalable (separación clara UI/Lógica/Datos)
+- [ ] App compilada sin errores para al menos Android e iOS simulador
+- [ ] Código organizado, comentado y listo para mantenimiento o extensión
 
 ---
 
-📌 **Siguiente Paso:**  
-Este plan está listo para ser ejecutado fase por fase. Cuando lo indiques, puedo generar **el código completo y funcional** para:
-1. `pubspec.yaml` + estructura de carpetas exacta.
-2. `AuthProvider` + pantallas de Login/Registro/Welcome.
-3. Modelos, Servicios Firestore y Providers de los módulos principales.
-4. Dashboard + Sistema CRUD Universal con la paleta estricta aplicada.
-
-¿Por cuál fase deseas que comience la generación de código?
+## 🔜 Siguiente Paso
+Este plan establece la base técnica, de diseño y procedimental completa. **Cuando estés listo, indícame por cuál fase deseas comenzar a generar el código** (ej. `Fase 1: Auth + Onboarding` o `Fase 0: Estructura + Configuración`). Entregaré el código modular, comentado y listo para copiar en VS Code, siguiendo estrictamente esta arquitectura y guías.
+Prompt para el Desarrollo de Polivet Pro
+Actúa como un Desarrollador Senior Experto en Flutter y Firebase. Tu misión es construir una aplicación veterinaria de alto rendimiento llamada Polivet, utilizando una arquitectura limpia (Clean Architecture) con Provider para la gestión de estado.El diseño debe ser minimalista, moderno y acogedor, utilizando estrictamente la siguiente paleta de colores:
+Primario: #bc6c25 (Tierra profundo)
+Secundario/Acentos: #dda15e (Arena suave)
+Fondo/Contraste: #fefae0 (Crema claro)
+ FASE 1: Autenticación y OnboardingDesarrolla el flujo inicial de usuario conectándolo directamente con Firebase Authentication:
+Welcome Screen: Una pantalla de bienvenida con el logo de Polivet que ofrezca dos opciones claras: "Iniciar Sesión" y "Crear Cuenta".
+Login Screen: * Campos: Correo electrónico, Nombre y Contraseña.
+Acción: Autenticar en Firebase y redirigir al Home.
+Register Screen: * Campos: Nombre, Apellidos, Fecha de Nacimiento (DatePicker), Correo electrónico y Contraseña.
+Acción: Registrar en Firebase Auth y crear un perfil de usuario adicional en la colección usuarios de Cloud Firestore.
+ FASE 2: Arquitectura de Datos (Firestore)
+Configura los Modelos, Servicios y Providers para manejar el CRUD completo de las siguientes entidades en Cloud Firestore. Cada cambio debe reflejarse en tiempo real en la consola de Firebase:
+Módulos a implementar:
+ Núcleo: MASCOTA (nombre, especie, raza, etc.) y CLIENTE (dueños).
+ Inventario: PRODUCTO (stock, categoría, precio) y PROVEEDOR.
+ Comercial: VENTA y COMPRA con sus respectivos detalles.
+ Salud: CITA y HISTORIAL_MEDICO.
+ Staff: EMPLEADO y PUESTO.
+ FASE 3: Interfaz de Usuario (UI/UX)Diseña la pantalla principal con un Dashboard Moderno que utilice Widgets personalizados para navegar a cada carpeta/módulo:
+Dashboard de Widgets: Cada entidad (Mascotas, Inventario, Citas, etc.) debe representarse con un Card elegante que use los colores #dda15e y #bc6c25.
+Sistema CRUD Universal:
+List Screen: Una vista de lista con búsqueda y filtros para cada entidad.
+Form Screen: Un formulario dinámico para Crear/Editar datos.
+Delete Action: Diálogos de confirmación estilizados antes de borrar datos de Firestore.
+Consistencia Visual: Usa bordes redondeados (15-20dp), tipografías claras y botones con gradientes sutiles entre los tonos café y arena.
+ FASE 4: Requerimientos Técnicos FinalesUsa cloud_firestore para la persistencia de datos.Usa firebase_auth para la seguridad.Usa provider para inyectar la lógica de negocio en las pantallas.Asegúrate de que todas las imágenes o iconos sean coherentes con la temática veterinaria.Entrega el código organizado por carpetas (models, services, providers, screens, widgets) listo para ser ejecutado en Flutter
+TOTALMENTE FUNCIONAL. 
