@@ -9,7 +9,7 @@ Secundario/Acentos: #dda15e (Arena suave)
 
 Fondo/Contraste: #fefae0 (Crema claro)
 
-🚀 FASE 1: Autenticación y Onboarding
+ FASE 1: Autenticación y Onboarding
 Desarrolla el flujo inicial de usuario conectándolo directamente con Firebase Authentication:
 
 Welcome Screen: Una pantalla de bienvenida con el logo de Polivet que ofrezca dos opciones claras: "Iniciar Sesión" y "Crear Cuenta".
@@ -22,22 +22,22 @@ Register Screen: * Campos: Nombre, Apellidos, Fecha de Nacimiento (DatePicker), 
 
 Acción: Registrar en Firebase Auth y crear un perfil de usuario adicional en la colección usuarios de Cloud Firestore.
 
-📂 FASE 2: Arquitectura de Datos (Firestore)
+ FASE 2: Arquitectura de Datos (Firestore)
 Configura los Modelos, Servicios y Providers para manejar el CRUD completo de las siguientes entidades en Cloud Firestore. Cada cambio debe reflejarse en tiempo real en la consola de Firebase:
 
 Módulos a implementar:
 
-🐾 Núcleo: MASCOTA (nombre, especie, raza, etc.) y CLIENTE (dueños).
+ Núcleo: MASCOTA (nombre, especie, raza, etc.) y CLIENTE (dueños).
 
-📦 Inventario: PRODUCTO (stock, categoría, precio) y PROVEEDOR.
+ Inventario: PRODUCTO (stock, categoría, precio) y PROVEEDOR.
 
-💰 Comercial: VENTA y COMPRA con sus respectivos detalles.
+ Comercial: VENTA y COMPRA con sus respectivos detalles.
 
-🏥 Salud: CITA y HISTORIAL_MEDICO.
+ Salud: CITA y HISTORIAL_MEDICO.
 
-👥 Staff: EMPLEADO y PUESTO.
+ Staff: EMPLEADO y PUESTO.
 
-🎨 FASE 3: Interfaz de Usuario (UI/UX)
+ FASE 3: Interfaz de Usuario (UI/UX)
 Diseña la pantalla principal con un Dashboard Moderno que utilice Widgets personalizados para navegar a cada carpeta/módulo:
 
 Dashboard de Widgets: Cada entidad (Mascotas, Inventario, Citas, etc.) debe representarse con un Card elegante que use los colores #dda15e y #bc6c25.
@@ -52,7 +52,7 @@ Delete Action: Diálogos de confirmación estilizados antes de borrar datos de F
 
 Consistencia Visual: Usa bordes redondeados (15-20dp), tipografías claras y botones con gradientes sutiles entre los tonos café y arena.
 
-🛠️ FASE 4: Requerimientos Técnicos Finales
+ FASE 4: Requerimientos Técnicos Finales
 Usa cloud_firestore para la persistencia de datos.
 
 Usa firebase_auth para la seguridad.
