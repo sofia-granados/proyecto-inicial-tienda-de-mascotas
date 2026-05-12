@@ -1,6 +1,5 @@
 # 🌐 Plan de Implementación Multiplataforma: Polivet Pro (Android / iOS / Web / Windows)
 
-> ⚠️ **Nota:** Este documento amplía el plan original con directrices específicas para garantizar compatibilidad nativa en **Android, iOS, Web y Windows**. Se mantiene el enfoque en procedimiento, arquitectura y validaciones. **No se incluye código**.
 
 ---
 
