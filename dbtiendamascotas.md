@@ -106,6 +106,8 @@ EMPLEADO ──< VENTA (como cajero)
 <img width="665" height="381" alt="image" src="https://github.com/user-attachments/assets/184d496e-80a1-4cae-86d1-5555427ca6af" />
 <img width="664" height="368" alt="image" src="https://github.com/user-attachments/assets/aa9064e6-e101-4a09-ad1d-d40d130fae73" />
 <img width="664" height="457" alt="image" src="https://github.com/user-attachments/assets/211a6073-f958-49cf-a212-aa3ee2936e8c" />
+
+de acuerdo con tu respuesta anterior puedes generar un script en sql para descargar con el nombre de bdtiendamascotas.sql para las entidades con sus relaciones
 <img width="667" height="494" alt="image" src="https://github.com/user-attachments/assets/78072dc2-d60f-4a55-8060-89033a58a6c3" />
 <img width="694" height="430" alt="image" src="https://github.com/user-attachments/assets/af47da48-ec75-463e-b8ad-93ee85457246" />
 
