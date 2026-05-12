@@ -1,6 +1,6 @@
 Prompt para el Desarrollo de Polivet Pro
 Actúa como un Desarrollador Senior Experto en Flutter y Firebase. Tu misión es construir una aplicación veterinaria de alto rendimiento llamada Polivet, utilizando una arquitectura limpia (Clean Architecture) con Provider para la gestión de estado.
-
+necesito que sea funcional para flutter para android/web/ windows/IOS
 El diseño debe ser minimalista, moderno y acogedor, utilizando estrictamente la siguiente paleta de colores:
 
 Primario: #bc6c25 (Tierra profundo)
