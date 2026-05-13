@@ -1,302 +1,147 @@
-# 📘 PLAN DE IMPLEMENTACIÓN TOTALMENTE FUNCIONAL: Polivet Pro (Flutter Multiplataforma)
-> 🌍 **Localización:** 100% Español (UI, Base de Datos, Validaciones, Mensajes, Formatos)
-> ⚠️ **Alcance:** Blueprint de ejecución exacta. Sigue los pasos en orden para obtener una aplicación compilable, funcional y completamente en español para Android, iOS, Web y Windows. **Sin código.**
+# 📘 PLAN DE IMPLEMENTACIÓN TOTALMENTE FUNCIONAL: Polivet Pro (18 Entidades | Flutter Multiplataforma | 100% ES)
+
+> ⚠️ **Alcance:** Este documento es un **blueprint de ejecución exacta**. Sigue estos pasos en orden y obtendrás una aplicación 100% funcional, compilable y desplegable en Android, iOS, Web y Windows. **No contiene código**. Está diseñado para ser seguido por un desarrollador o equipo sin ambigüedades.
 
 ---
 
-## 📋 0. ESTRATEGIA DE LOCALIZACIÓN ESPAÑOLA (ES)
-Para garantizar que **todos los datos y textos visibles** estén estrictamente en español, se aplicará la siguiente política transversal:
-
-| Elemento | Política de Localización | Ejemplo |
-|----------|--------------------------|---------|
-| **Interfaz (UI)** | Cadenas centralizadas en `strings_es.dart` o constantes globales | `label_bienvenida: "Bienvenido a Polivet Pro"` |
-| **Campos Firestore** | Nombres de colecciones y documentos en español, snake_case | `clientes/{uid}`, campo: `nombre_completo` |
-| **Modelos Dart** | Propiedades y métodos en español | `class Cliente { String correo; }` |
-| **Validaciones** | Mensajes de error en español nativo, sin anglicismos | `"El correo electrónico no tiene un formato válido"` |
-| **Errores Firebase** | Mapeo explícito de códigos técnicos a frases en español | `wrong-password → "La contraseña ingresada es incorrecta."` |
-| **Formatos** | `Locale('es', 'ES')` forzado. Fechas: `dd/MM/yyyy`, Hora: `HH:mm`, Moneda: `es_ES`/`es_MX` | `"13/05/2026 14:30"`, `"$ 1.250,00"` |
-| **Estados Vacíos** | Ilustraciones + texto descriptivo + botón de acción en español | `"Aún no hay mascotas registradas. Agrega la primera aquí."` |
+## 📋 0. PRE-REQUISITOS OBLIGATORIOS
+| Elemento | Acción Requerida | Validación |
+|----------|------------------|------------|
+| **SDK** | Flutter `stable` ≥ 3.22, Dart ≥ 3.4 | `flutter --version` muestra canal estable |
+| **IDE** | VS Code + Extensiones: `Flutter`, `Dart`, `Firebase`, `Error Lens` | `flutter doctor` sin ❌ críticos |
+| **Plataformas** | Android SDK, Xcode (macOS), Visual Studio 2022+ (Windows), Chrome/Edge | `flutter devices` lista ≥1 dispositivo por plataforma |
+| **Firebase** | Cuenta activa, Proyecto creado, Billing habilitado (Spark es suficiente) | Consola Firebase accesible con proyecto activo |
+| **Control de Versiones** | Git instalado, repo inicializado | `git init` ejecutado, `.gitignore` generado |
 
 ---
 
-## 🏗️ FASE 1: CONFIGURACIÓN BASE & ARQUITECTURA
-### 🎯 Objetivo
-Estructurar el proyecto, forzar localización `es_ES`, configurar tema visual y enrutamiento seguro.
+## 🗃️ 1. ESQUEMA DE ENTIDADES & REQUISITOS OBLIGATORIOS (Firestore / NoSQL)
+Se adapta el modelo relacional a Firestore mediante **documentos independientes, referencias por ID y arrays embebidos** para transacciones. Todos los campos y colecciones se nombran en español `snake_case`. Se definen explícitamente los campos obligatorios (`✅ Obligatorios`) y las reglas de validación por entidad.
 
-### 📝 Procedimiento Paso a Paso
-1. Crear proyecto multiplataforma:  
-   `flutter create polivet_pro --platforms=android,ios,web,windows`
-2. Vincular Firebase:  
-   `flutterfire configure` → Seleccionar proyecto → Generar `firebase_options.dart`
-3. Crear estructura de carpetas:
-   ```
-   lib/
-   ├── core/          # tema, constantes, router, utilidades, localizacion_es
-   ├── domain/        # entidades_es, interfaces_repositorio, casos_uso
-   ├── data/          # modelos_es, repositorios_impl, fuentes_datos
-   ├── presentation/  # proveedores_es, pantallas_es, widgets_es
-   └── main.dart
-   ```
-4. Configurar `pubspec.yaml`:
-   - Dependencias: `firebase_core`, `firebase_auth`, `cloud_firestore`, `provider`, `go_router`, `flutter_svg`, `intl`, `uuid`, `collection`, `flutter_form_builder`, `form_builder_validators`, `fluttertoast`
-   - Agregar `flutter_localizations` y `intl` para forzar idioma
-   - Registrar fuentes: `assets/fonts/Poppins/` y activos: `assets/icons/`, `assets/images/`
-5. Definir `AppTheme` en `core/tema/`:
-   - `primario: #bc6c25`, `secundario: #dda15e`, `fondo: #fefae0`, `texto: #3e2723`
-   - `radioBorde: 16.0`, `sombraTarjeta: 2`, `gradienteBoton: lineal(#bc6c25 → #dda15e)`
-   - `tipografia: Poppins`, jerarquía clara
-6. Configurar `go_router`:
-   - Rutas: `/bienvenida`, `/inicio-sesion`, `/registro`, `/panel`, `/modulo/:nombre`
-   - Redirección condicional: si `!auth.estaAutenticado` → `/bienvenida`, si sí → `/panel`
-   - Forzar `Locale('es', 'ES')` en `MaterialApp.localizationsDelegates`
-7. Inicializar `MultiProvider` en `main.dart`:
-   - `ProveedorAutenticacion`, `ProveedorMascotas`, `ProveedorClientes`, `ProveedorInventario`, `ProveedorCitas`, `ProveedorVentas`, `ProveedorPersonal`
-   - `Firebase.initializeApp()` antes de `runApp()`
+| Colección Firestore | Campos | ✅ Requisitos Obligatorios & Validaciones |
+|---------------------|--------|------------------------------------------|
+| `usuarios` | `id, empleado_id, username, rol, activo, ultimo_acceso` | `username`, `rol`, `activo` son obligatorios. `id` = UID de Firebase Auth. `password_hash` **NO** se guarda (gestionado por Auth). |
+| `mascotas` | `id, nombre, especie, raza, edad, sexo, peso, color, microchip, fecha_ingreso, estado` | `nombre`, `especie`, `propietario_id`, `estado` obligatorios. `peso` ≥ 0, `estado` ∈ ["activo", "inactivo", "fallecido"]. |
+| `clientes` | `id, nombre, apellido, email, telefono, direccion, fecha_registro` | `nombre`, `apellido` obligatorios. Al menos `email` o `telefono` debe ser válido. Formato email y teléfono validado. |
+| `proveedores` | `id, nombre_empresa, contacto, email, telefono, direccion, rfc` | `nombre_empresa`, `contacto`, `email`/`telefono` obligatorios. `rfc` opcional pero con formato válido si se proporciona. |
+| `productos` | `id, nombre, descripcion, precio_compra, precio_venta, stock, stock_minimo, categoria_id, proveedor_id` | `nombre`, `precio_venta`, `stock`, `categoria_id` obligatorios. `precio_venta` > 0, `stock` ≥ 0, `stock_minimo` ≥ 0. |
+| `categorias_producto` | `id, nombre` | `nombre` obligatorio. Debe ser único para evitar duplicados en UI. |
+| `inventario_movimientos` | `id, producto_id, tipo, cantidad, fecha, motivo, usuario_id` | `producto_id`, `tipo` (entrada/salida/ajuste), `cantidad` (≠0), `fecha` obligatorios. Se escribe atómicamente con cada cambio de stock. |
+| `ventas` | `id, cliente_id, empleado_id, fecha, subtotal, descuento, impuesto, total, metodo_pago, estado, detalles[]` | `cliente_id`, `fecha`, `total`, `metodo_pago`, `estado`, `detalles[]` obligatorios. `detalles[]` embebido: `[{producto_id, cantidad, precio_unitario, subtotal}]`. `total` = `subtotal - descuento + impuesto`. |
+| `compras` | `id, proveedor_id, empleado_id, fecha, total, estado, detalles[]` | `proveedor_id`, `fecha`, `total`, `estado`, `detalles[]` obligatorios. Mismo patrón de array embebido que `ventas`. |
+| `citas` | `id, mascota_id, cliente_id, veterinario_id, fecha_hora, tipo_servicio, motivo, estado` | `mascota_id`, `cliente_id`, `fecha_hora`, `tipo_servicio`, `estado` obligatorios. `fecha_hora` no puede ser pasada al crear. `estado` ∈ ["pendiente", "confirmada", "en_proceso", "completada", "cancelada"]. |
+| `historiales_medicos` | `id, mascota_id, veterinario_id, fecha, diagnostico, tratamiento, observaciones` | `mascota_id`, `fecha`, `diagnostico` obligatorios. `diagnostico` y `tratamiento` máx. 1000 caracteres. |
+| `servicios` | `id, nombre, descripcion, precio, duracion_min` | `nombre`, `precio` (>0), `duracion_min` (>0) obligatorios. Catálogo maestro referenciado por `ventas_servicios`. |
+| `ventas_servicios` | `id, cita_id, servicio_id, precio, descuento` | `cita_id`, `servicio_id`, `precio` obligatorios. Vincula servicios prestados a citas. `descuento` ≥ 0. |
+| `empleados` | `id, nombre, apellido, puesto, email, telefono, salario, fecha_contrato, activo` | `nombre`, `apellido`, `puesto`, `activo` obligatorios. `salario` ≥ 0, `email` formato válido. |
+| `puestos` | `id, nombre, descripcion, permisos[]` | `nombre`, `permisos[]` obligatorios. `permisos[]` array de strings: `["crear_venta", "editar_cita", "ver_inventario", ...]`. |
+| `audit_logs` | `id, usuario_id, tabla, accion, fecha, ip, datos_anteriores, datos_nuevos` | `usuario_id`, `tabla`, `accion`, `fecha` obligatorios. Solo escritura. Lectura restringida a roles administrativos. |
 
-### 📦 Entregables
-- Estructura de carpetas creada
-- `pubspec.yaml` configurado con soporte ES
-- Tema global y localización forzada
-- Router con redirección segura
-- Proveedores instanciados
-
-### ✅ Criterios de Validación
-- [ ] `flutter run -d chrome` compila sin warnings
-- [ ] Todo texto visible aparece en español
-- [ ] Fechas y monedas siguen formato español
-- [ ] Router redirige correctamente según estado
-- [ ] `flutter analyze` muestra 0 errores críticos
+> 🔍 **Decisión Técnica:** Se prioriza **atomicidad en transacciones** (`ventas`, `compras`) con detalles embebidos, y **consultas cruzadas** (`mascota_id`, `cliente_id`, `empleado_id`) mediante referencias. Esto evita `N+1 queries` excesivos y mantiene Firestore dentro de límites de rendimiento.
 
 ---
 
-## 🔐 FASE 2: AUTENTICACIÓN & ONBOARDING (100% ES)
-### 🎯 Objetivo
-Implementar registro, inicio de sesión, perfil y redirección segura con mensajes y validaciones en español.
-
-### 📝 Procedimiento Paso a Paso
-1. **Firebase Console:**
-   - Autenticación → Método → Habilitar `Correo electrónico / Contraseña`
-   - Firestore → Modo `Pruebas` (luego producción)
-2. **Capa de Dominio & Datos:**
-   - Entidad `Usuario`: `uid`, `correo`, `nombre`, `apellidos`, `fecha_nacimiento`, `creado_en`
-   - Modelo `ModeloUsuario` con `fromJson`/`toJson` en español
-   - Interfaz `RepositorioAutenticacion`: `iniciarSesion()`, `registrar()`, `cerrarSesion()`, `escucharCambios()`
-   - Implementación `RepositorioFirebaseAuth` mapeando códigos de error a frases en español
-3. **Proveedor de Estado:**
-   - `ProveedorAutenticacion extends ChangeNotifier`
-   - Estado: `estaAutenticado`, `cargando`, `usuario`, `mensajeError`
-   - Métodos: `autenticar()`, `registrarUsuario()`, `salir()`, `observarSesion()`
-4. **Pantallas UI (Español nativo):**
-   - `PantallaBienvenida`: Logo centrado, ilustración veterinaria, botones `"Iniciar Sesión"` y `"Crear Cuenta"`
-   - `PantallaInicioSesion`: Campos `"Correo electrónico"`, `"Contraseña"`. Validación: `"El correo es obligatorio"`, `"La contraseña debe tener al menos 8 caracteres"`. Botón `"Entrar"`
-   - `PantallaRegistro`: Campos `"Nombre"`, `"Apellidos"`, `"Fecha de nacimiento"` (DatePicker), `"Correo electrónico"`, `"Contraseña"`, `"Confirmar contraseña"`. Validación: `"Los campos no coinciden"`, `"La fecha no puede ser futura"`. Al éxito: crear en Auth → documento en `usuarios/{uid}` → redirigir a `/panel`
-5. **Mapeo de Errores Firebase (ES):**
-   - `user-not-found` → `"No existe una cuenta con este correo."`
-   - `wrong-password` → `"La contraseña ingresada es incorrecta."`
-   - `email-already-in-use` → `"Este correo ya está registrado."`
-   - `invalid-email` → `"El formato del correo no es válido."`
-   - `weak-password` → `"La contraseña es demasiado débil."`
-   - `network-request-failed` → `"Error de conexión. Verifica tu internet."`
-
-### 📦 Entregables
-- Flujo completo de autenticación funcional
-- Perfil de usuario persistido en `usuarios/`
-- Mensajes de error y validaciones en español
-- Redirección segura por estado
-
-### ✅ Criterios de Validación
-- [ ] Registro crea documento en `usuarios/{uid}` con campos en español
-- [ ] Login redirige al panel con datos cargados
-- [ ] Errores muestran frases claras en español
-- [ ] Cierre de sesión limpia estado y redirige a `/bienvenida`
-- [ ] Pruebas unitarias de `ProveedorAutenticacion` pasan
+## 🏗️ 2. ARQUITECTURA Y ESTRUCTURA DEL PROYECTO
+```
+lib/
+├── core/               # tema, constantes_es, router, localizadores_es, utilidades
+├── domain/             # entidades_es, interfaces_repositorio, casos_uso
+├── data/               # modelos_es, repositorios_impl, fuentes_firestore
+├── presentation/       # proveedores_es, pantallas_es, widgets_es
+└── main.dart           # MultiProvider, Firebase init, MaterialApp(locale: es_ES)
+```
+- **State Management:** `ChangeNotifier` por módulo de negocio (`Auth`, `Negocio`, `Inventario`, `Finanzas`, `Veterinaria`, `RRHH`, `Sistema`)
+- **Inyección:** Manual en `main.dart` o `get_it` si se escala
+- **Flujo de Datos:** UI → Provider → Repositorio → Firestore → Stream/Future → UI
+- **Localización:** Forzada a `Locale('es', 'ES')`. Sin fallback a inglés. Todos los `Strings`, validaciones y errores mapeados a español nativo.
 
 ---
 
-## 🗃️ FASE 3: ARQUITECTURA DE DATOS & CRUD EN TIEMPO REAL (ES)
-### 🎯 Objetivo
-Implementar modelos, repositorios y proveedores para las 10 entidades con sincronización Firestore y nomenclatura 100% española.
+## 🚀 3. PROCEDIMIENTO PASO A PASO (FASES 0-6)
 
-### 📝 Procedimiento Paso a Paso
-1. **Esquemas Firestore (Nombres en español):**
-   - `mascotas`: `id`, `nombre`, `especie`, `raza`, `fecha_nacimiento`, `propietario_id`, `creado_en`
-   - `clientes`: `id`, `nombre_completo`, `correo`, `telefono`, `direccion`, `creado_en`
-   - `productos`: `id`, `nombre`, `categoria`, `precio`, `stock`, `proveedor_id`, `activo`
-   - `proveedores`: `id`, `nombre_empresa`, `contacto`, `telefono`, `correo`, `direccion`
-   - `ventas`: `id`, `cliente_id`, `fecha`, `total`, `estado`, `detalles[]`
-   - `compras`: `id`, `proveedor_id`, `fecha`, `total`, `estado`, `detalles[]`
-   - `citas`: `id`, `mascota_id`, `fecha`, `hora`, `tipo_servicio`, `estado`, `notas`
-   - `historiales`: `id`, `mascota_id`, `fecha`, `diagnostico`, `tratamiento`, `veterinario_id`
-   - `personal`: `id`, `nombre`, `puesto`, `telefono`, `correo`, `horario`
-   - `puestos`: `id`, `nombre`, `permisos[]`
-2. **Capa de Datos:**
-   - `RepositorioFirestore<T>` genérico: `crear()`, `leer()`, `actualizar()`, `eliminar()`, `observarTodos()`, `buscar()`
-   - `ConstructoresConsulta` para filtrado, ordenamiento y límites
-   - Mapeo de `FirebaseException` a `ErrorAplicacion` con mensajes en español
-3. **Proveedores por Módulo:**
-   - Cada proveedor extiende `ChangeNotifier`
-   - Estado: `elementos`, `cargando`, `enviando`, `error`, `consultaBusqueda`, `filtro`
-   - Métodos: `cargarElementos()`, `agregarElemento()`, `actualizarElemento()`, `eliminarElemento()`, `buscar()`, `aplicarFiltro()`
-   - `StreamSubscription` para `observarTodos()` y `cancelar()` en `dispose()`
-4. **Reglas de Seguridad Firestore:**
-   - `allow read, write: if request.auth != null && request.resource.data.keys().hasAll(['creado_en'])`
-   - Validación de tipos: `es string`, `es number`, `es timestamp`
-   - Restricción por rol si se escala
+### 🔹 FASE 0: CONFIGURACIÓN MULTIPLATAFORMA & LOCALIZACIÓN
+1. Crear proyecto: `flutter create polivet_pro --platforms=android,ios,web,windows`
+2. Vincular Firebase: `flutterfire configure` → generar `firebase_options.dart`
+3. Configurar `pubspec.yaml` con dependencias exactas y `flutter_localizations` + `intl`
+4. Forzar idioma en `MaterialApp`: `locale: const Locale('es', 'ES')`, `supportedLocales: [...]`, `localizationsDelegates: [...]`
+5. Definir `AppTheme` con paleta `#bc6c25`, `#dda15e`, `#fefae0`, `#3e2723` y tipografía `Poppins`
+6. Configurar `go_router` con rutas en español: `/bienvenida`, `/inicio-sesion`, `/registro`, `/panel`, `/modulo/:nombre`
+7. Validar `flutter run` en Chrome, Windows y emulador Android sin warnings
 
-### 📦 Entregables
-- 10 modelos serializables con nomenclatura ES
-- Repositorio genérico funcional
-- 10 proveedores aislados por entidad
-- Reglas de seguridad activas y en español
+### 🔹 FASE 1: AUTENTICACIÓN & ENTIDAD `USUARIOS`
+1. Habilitar `Email/Password` en Firebase Auth
+2. Crear modelo `Usuario` con campos exactos (excluyendo `password_hash`, gestionado por Auth)
+3. Implementar `RepositorioAutenticacion`: `iniciarSesion()`, `registrar()`, `cerrarSesion()`, `escucharCambios()`
+4. Mapear códigos Firebase a mensajes en español: `wrong-password` → `"Contraseña incorrecta."`, `email-already-in-use` → `"Este correo ya está registrado."`, etc.
+5. Al registrar: crear en Auth → escribir documento en `usuarios/{uid}` → redirigir a `/panel`
+6. `ProveedorAutenticacion` expone: `estaAutenticado`, `usuarioActual`, `cargando`, `error`
+7. Validar flujo completo: registro → login → perfil cargado → logout → redirección
 
-### ✅ Criterios de Validación
-- [ ] CRUD completo se refleja en consola Firebase
-- [ ] Actualizaciones visibles en <500ms
-- [ ] Búsqueda filtra sin recargar pantalla
-- [ ] Eliminación solicita confirmación en español y borra documento
-- [ ] `flutter analyze` sin fugas de memoria
+### 🔹 FASE 2: CAPA DE DATOS & MODELOS (18 ENTIDADES)
+1. Crear modelos Dart para las 18 entidades, exactamente con los campos solicitados
+2. Implementar `fromJson`/`toJson` con validaciones de tipo y **marcado explícito de campos obligatorios**
+3. Configurar `RepositorioFirestore<T>` genérico: `crear()`, `leer()`, `actualizar()`, `eliminar()`, `observarTodos()`, `buscar()`
+4. Manejar relaciones NoSQL:
+   - `detalles` en `ventas`/`compras` → arrays de mapas
+   - Referencias → campos `*_id` con resolución en cliente
+   - Logs → escrituras atómicas via `FirebaseFirestore.instance.runTransaction()`
+5. Crear `ConstructoresConsulta` para índices: `fecha_hora`, `estado`, `categoria_id`, `cliente_id`
+6. Definir reglas de seguridad Firestore por colección (lectura/escritura autenticada + validación de tipos)
 
----
+### 🔹 FASE 3: PROVIDERS & GESTIÓN DE ESTADO
+1. Crear 7 proveedores agrupados por dominio:
+   - `ProveedorAuth`, `ProveedorNegocio` (mascotas, clientes, proveedores)
+   - `ProveedorInventario` (productos, categorías, movimientos)
+   - `ProveedorFinanzas` (ventas, compras, detalles, servicios)
+   - `ProveedorVeterinaria` (citas, historiales, ventas_servicios)
+   - `ProveedorRRHH` (empleados, puestos)
+   - `ProveedorSistema` (usuarios, audit_logs)
+2. Cada provider expone: `elementos`, `cargando`, `enviando`, `error`, `consulta`, `filtro`
+3. Métodos: `cargar()`, `agregar()`, `actualizar()`, `eliminar()`, `buscar()`, `aplicarFiltro()`
+4. Suscribir `StreamSubscription` a colecciones relevantes y `cancelar()` en `dispose()`
+5. Validar que cambios en Firestore se reflejen en <500ms sin reconstrucciones innecesarias
 
-## 🎨 FASE 4: INTERFAZ DE USUARIO & PANEL RESPONSIVO (ES)
-### 🎯 Objetivo
-Construir UI consistente, adaptable a 4 plataformas, con navegación modular y componentes reutilizables con textos 100% en español.
+### 🔹 FASE 4: UI/UX & CRUD RESPONSIVO (100% ES)
+1. **Panel Principal:** `GridView` con módulos: `Mascotas`, `Clientes`, `Inventario`, `Ventas`, `Compras`, `Citas`, `Historiales`, `Personal`, `Auditoría`
+2. **Pantallas Lista:** `SliverAppBar` con búsqueda colapsable, filtros por `estado`, `categoria_id`, `fecha`
+3. **Pantallas Formulario:**
+   - Campos dinámicos según entidad
+   - Validaciones en español: `"El stock no puede ser negativo"`, `"La fecha no puede ser anterior a hoy"`, `"Seleccione una categoría válida"`, etc.
+   - Botones: `"Guardar"`, `"Cancelar"`, `"Eliminar"`
+   - Para `ventas`/`compras`: botón `"Agregar detalle"` que inserta en array `detalles` con cálculo automático de `subtotal`
+4. **Diálogos & Estados Vacíos:** Textos 100% ES, ilustraciones temáticas, confirmaciones de eliminación
+5. **Consistencia Visual:** Bordes `16px` (tarjetas), `12px` (campos), `20px` (botones), gradientes `#bc6c25 → #dda15e`, sombras suaves
+6. **Adaptabilidad:** `LayoutBuilder` para `crossAxisCount`, `MediaQuery` para teclado virtual, `Tab`/`Hover` para escritorio
 
-### 📝 Procedimiento Paso a Paso
-1. **Panel Principal:**
-   - `GridView.builder` con `crossAxisCount` calculado vía `LayoutBuilder`
-   - 6-8 módulos visibles: `"Mascotas"`, `"Clientes"`, `"Inventario"`, `"Proveedores"`, `"Ventas"`, `"Citas"`, `"Historiales"`, `"Personal"`
-   - Tarjetas: icono SVG, título en español, fondo `#fefae0`, borde `#dda15e`, sombra suave
-   - Efecto hover en escritorio (escala 1.02, opacidad)
-2. **PantallaLista Genérica:**
-   - `SliverAppBar` con búsqueda colapsable (`placeholder: "Buscar por nombre, especie o categoría..."`)
-   - Filtro integrado que actualiza `consultaBusqueda` en proveedor
-   - `ListView.builder` con `Dismissible` (móvil) / botón `"Eliminar"` (escritorio)
-   - Deslizar para refrescar
-   - Estado vacío: ilustración + `"Aún no hay registros. Toca el botón + para agregar uno."`
-3. **PantallaFormulario Dinámica:**
-   - Campos renderizados según esquema de entidad
-   - Validación inline: `"Este campo es obligatorio"`, `"Formato no válido"`, `"El precio debe ser mayor a 0"`
-   - Botones `"Guardar"` (gradiente) y `"Cancelar"`
-   - Teclado virtual se ajusta con `MediaQuery.viewInsets`
-   - Atajos escritorio: `Ctrl+S` (guardar), `Esc` (cancelar)
-4. **Componentes Reutilizables (Labels ES):**
-   - `BotonPersonalizado`: `"Continuar"`, `"Editar"`, `"Eliminar"`, `"Volver"`
-   - `CampoTextoPersonalizado`: etiquetas, texto de error, icono prefijo
-   - `SuperposicionCarga`: `"Cargando información..."`, `"Procesando solicitud..."`
-   - `DialogoConfirmacionEliminacion`: `"¿Estás seguro de eliminar este registro?"`, `"Esta acción no se puede deshacer."`
-5. **Consistencia Visual:**
-   - Bordes: `16px` (tarjetas), `12px` (campos), `20px` (botones)
-   - Sombras: `box-shadow: 0 4px 12px rgba(188, 108, 37, 0.15)`
-   - Tipografía: `Poppins`, contraste WCAG AA
-   - Iconos: temática veterinaria, SVG, escalado automático
+### 🔹 FASE 5: OPTIMIZACIÓN MULTIPLATAFORMA
+1. **Web:** `--web-renderer canvaskit`, `PathUrlStrategy`, `manifest.json` con `"lang": "es"`, PWA opcional
+2. **Windows:** DPI aware, `MSIX` packaging, atajos `Ctrl+S`/`Esc`, navegación por teclado
+3. **Android/iOS:** `minifyEnabled`, `shrinkResources`, `Info.plist` permisos, generación `.aab`/`.ipa`
+4. **Rendimiento:** `const` widgets, `ListView.builder`, `StreamProvider` solo para datos en tiempo real, caché de imágenes, evitar `setState` en árbol alto
+5. Validar compilación `--release` sin errores en las 4 plataformas
 
-### 📦 Entregables
-- Panel responsivo con navegación ES
-- 10 pantallas CRUD completas
-- Biblioteca de widgets reutilizables
-- Navegación fluida y accesible
-
-### ✅ Criterios de Validación
-- [ ] Panel se adapta a `320px`, `768px`, `1280px`
-- [ ] Búsqueda filtra en <200ms sin bloquear UI
-- [ ] Formularios validan correctamente en móvil y teclado físico
-- [ ] Diálogos de eliminación bloquean interacción hasta respuesta
-- [ ] `flutter run -d web` y `-d windows` renderizan sin distorsión
+### 🔹 FASE 6: PRUEBAS, SEGURIDAD & DESPLIEGUE
+1. **Pruebas:** Unitarias (repos, providers, validadores ES), Widget (login, formularios, listas), Integración (flujo completo)
+2. **Seguridad:** Reglas Firestore a producción, App Check, validación cliente+servidor, variables sensibles en compilación
+3. **Despliegue:** Firebase Hosting (Web), Play Console (Android), App Store Connect (iOS), Microsoft Store o `.msi` (Windows)
+4. **Documentación:** `README.md` completo en español, guía de instalación, estructura, comandos de build, política de privacidad
 
 ---
 
-## 🌍 FASE 5: OPTIMIZACIÓN MULTIPLATAFORMA (ES)
-### 🎯 Objetivo
-Garantizar rendimiento nativo, compatibilidad de input y empaquetado con localización persistente.
+## ✅ 4. CHECKLIST DE VALIDACIÓN CROSS-PLATFORM & LOCALIZACIÓN
+| Entidad/Módulo | Android | iOS | Web | Windows | Localización ES |
+|----------------|---------|-----|-----|---------|-----------------|
+| Auth + `usuarios` | ✅ | ✅ | ✅ | ✅ | 100% ES (campos, errores, flujos) |
+| `mascotas`, `clientes`, `proveedores` | ✅ | ✅ | ✅ | ✅ | Campos, labels, validaciones en ES |
+| `productos`, `categorias`, `inventario_movimientos` | ✅ | ✅ | ✅ | ✅ | Moneda ES, fechas `dd/MM/yyyy` |
+| `ventas`, `compras`, `detalles` | ✅ | ✅ | ✅ | ✅ | Cálculos atómicos, textos transaccionales ES |
+| `citas`, `historiales`, `servicios`, `ventas_servicios` | ✅ | ✅ | ✅ | ✅ | Agendas, diagnósticos, estados en ES |
+| `empleados`, `puestos`, `audit_logs` | ✅ | ✅ | ✅ | ✅ | Roles, permisos, logs en ES |
+| Panel Responsivo | ✅ | ✅ | ✅ | ✅ | Grid adaptativo, hover/touch ES |
+| Builds `--release` | ✅ | ✅ | ✅ | ✅ | Compilación limpia multiplataforma |
+| Pruebas Automatizadas | ✅ | ✅ | ✅ | ✅ | Cobertura ≥70%, mensajes ES |
 
-### 📝 Procedimiento Paso a Paso
-1. **Web:**
-   - `flutter build web --release --web-renderer canvaskit`
-   - `web/manifest.json`: `"name": "Polivet Pro"`, `"short_name": "Polivet"`, `"lang": "es"`
-   - `index.html`: meta viewport, favicon, service worker (opcional)
-   - URL strategy: `PathUrlStrategy()` con rutas en español opcional (recomendado técnico: mantener rutas técnicas `/panel`)
-2. **Windows:**
-   - `windows/runner/`: DPI awareness `PER_MONITOR_AWARE`
-   - Empaquetado `MSIX`: icono `.ico`, versión, firma
-   - Validar navegación `Tab`/`Enter` y tooltips en español
-   - Ejecutar en Windows 10/11, `1920x1080` y `1366x768`
-3. **Android/iOS:**
-   - `android/app/build.gradle`: `minifyEnabled true`, `shrinkResources true`
-   - `ios/Runner/Info.plist`: permisos red, orientación, tema
-   - Generar APK/AAB y IPA de prueba
-4. **Rendimiento:**
-   - `const` en widgets estáticos
-   - `ListView.builder`/`GridView.builder`
-   - `StreamProvider` solo datos en tiempo real, `ChangeNotifierProvider` para formularios
-   - Caché imágenes con `flutter_cache_manager`
-   - Evitar `setState()` en árbol alto
 
-### 📦 Entregables
-- Builds funcionales por plataforma
-- Configuraciones de empaquetado listas
-- Métricas de rendimiento validadas
-
-### ✅ Criterios de Validación
-- [ ] Web carga en <3s en red 3G simulada
-- [ ] Windows abre en <1.5s, redimensiona sin fallo
-- [ ] Android/iOS navegan a 60 FPS
-- [ ] `flutter build apk/ios/web/windows --release` sin errores
-
----
-
-## 🧪 FASE 6: PRUEBAS, SEGURIDAD & DESPLIEGUE
-### 🎯 Objetivo
-Validar funcionalidad, proteger datos y preparar distribución con localización verificada.
-
-### 📝 Procedimiento Paso a Paso
-1. **Pruebas:**
-   - Unitarias: `ProveedorAutenticacion`, `RepositorioFirestore`, `ValidadoresES`
-   - Widget: `PantallaInicioSesion`, `FormularioPersonalizado`, `TarjetaPanel`
-   - Integración: flujo `"registro → inicio sesión → crear mascota → ver lista → editar → eliminar"`
-   - Ejecutar: `flutter test`, `integration_test`
-2. **Seguridad:**
-   - Reglas Firestore a producción
-   - Validación entrada datos frontend + backend
-   - App Check (reCAPTCHA v3 web, Play Integrity Android, DeviceCheck iOS)
-   - Variables sensibles en `flutter_dotenv` o compilación
-3. **Despliegue:**
-   - Web: Firebase Hosting / Vercel / Netlify
-   - Android: Play Console (`.aab`), capturas, política privacidad ES
-   - iOS: Xcode → Archive → App Store Connect, certificados, provisioning
-   - Windows: Microsoft Store o `.msi`/`.exe` firmado
-4. **Documentación (ES):**
-   - `README.md` con arquitectura, configuración, dependencias, comandos de compilación
-   - `.env.example`
-   - Guía de contribución y flujo Git en español
-
-### 📦 Entregables
-- Reportes de pruebas
-- Reglas de seguridad activas
-- Binarios listos para distribución
-- Documentación técnica completa en español
-
-### ✅ Criterios de Validación
-- [ ] Cobertura pruebas ≥ 70% en lógica crítica
-- [ ] Reglas Firestore bloquean escrituras no autenticadas
-- [ ] App Check activo en producción
-- [ ] `flutter clean && flutter pub get && flutter build` exitoso en todas las plataformas
-
----
-
-## 📊 CHECKLIST DE LOCALIZACIÓN & FUNCIONALIDAD TOTAL
-| Módulo | Android | iOS | Web | Windows | Localización ES |
-|--------|---------|-----|-----|---------|-----------------|
-| Auth + Perfil | ✅ | ✅ | ✅ | ✅ | 100% ES (campos, errores, diálogos) |
-| CRUD Mascotas/Clientes | ✅ | ✅ | ✅ | ✅ | 100% ES (coleccion, campos, validaciones) |
-| CRUD Inventario/Proveedores | ✅ | ✅ | ✅ | ✅ | 100% ES |
-| CRUD Ventas/Compras | ✅ | ✅ | ✅ | ✅ | 100% ES |
-| CRUD Citas/Historial | ✅ | ✅ | ✅ | ✅ | 100% ES |
-| Panel Responsivo | ✅ | ✅ | ✅ | ✅ | 100% ES (labels, placeholders, estados vacíos) |
-| Builds --release | ✅ | ✅ | ✅ | ✅ | Locale `es_ES` forzado en `MaterialApp` |
-| Pruebas Automatizadas | ✅ | ✅ | ✅ | ✅ | Validadores y mensajes en español |
-
----
 
 
 
